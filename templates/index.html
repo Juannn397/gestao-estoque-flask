@@ -1,0 +1,301 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gestão de Estoque</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 28px;
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: Arial, sans-serif;
+        }
+
+        main { max-width: 1150px; margin: auto; }
+
+        h1 { color: #38bdf8; }
+
+        .subtitulo { color: #94a3b8; }
+
+        .painel, .cartao {
+            background: #1e293b;
+            padding: 22px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+        }
+
+        .grade {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .graficos {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .numero {
+            font-size: 27px;
+            font-weight: bold;
+            color: #38bdf8;
+        }
+
+        .rotulo { color: #cbd5e1; font-size: 13px; }
+
+        .campos {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        label { display: block; margin-bottom: 7px; }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            color: white;
+            border: 1px solid #475569;
+            border-radius: 8px;
+        }
+
+        button {
+            background: #38bdf8;
+            color: #082f49;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        a { color: #38bdf8; }
+
+        .mensagem {
+            padding: 12px;
+            background: #14532d;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .topo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        canvas { max-height: 340px; }
+
+        @media (max-width: 800px) {
+            .grade, .graficos, .campos {
+                grid-template-columns: 1fr;
+            }
+
+            body { padding: 15px; }
+        }
+    </style>
+</head>
+
+<body>
+<main>
+
+{% if login %}
+
+    <section class="painel" style="max-width:420px; margin:90px auto;">
+        <h1>Gestão de Estoque</h1>
+        <p class="subtitulo">Acesso administrativo</p>
+
+        {% if erro %}
+            <p>{{ erro }}</p>
+        {% endif %}
+
+        <form method="POST" action="/login">
+            <label>Senha do administrador</label>
+            <input type="password" name="senha" required>
+            <button type="submit">Entrar</button>
+        </form>
+    </section>
+
+{% else %}
+
+    <div class="topo">
+        <div>
+            <h1>Gestão de Estoque</h1>
+            <p class="subtitulo">
+                Dashboard consolidado das três lojas
+            </p>
+        </div>
+        <a href="/sair">Sair</a>
+    </div>
+
+    {% if mensagem %}
+        <div class="mensagem">{{ mensagem }}</div>
+    {% endif %}
+
+    <section class="painel">
+        <h2>Importar planilha Excel</h2>
+
+        <form action="/importar" method="POST"
+              enctype="multipart/form-data">
+
+            <div class="campos">
+                <div>
+                    <label>Categoria do arquivo</label>
+                    <select name="categoria" required>
+                        {% for categoria in categorias %}
+                            <option value="{{ categoria }}">
+                                {{ categoria }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label>Selecione o Excel</label>
+                    <input type="file" name="arquivo"
+                           accept=".xlsx" required>
+                </div>
+            </div>
+
+            <button type="submit">Importar para o Supabase</button>
+        </form>
+    </section>
+
+    <section class="painel">
+        <h2>Filtros do dashboard</h2>
+
+        <form method="GET" action="/">
+            <div class="campos">
+                <div>
+                    <label>Categoria</label>
+                    <select name="categoria">
+                        <option value="Todas">Todas</option>
+                        {% for categoria in categorias %}
+                            <option value="{{ categoria }}"
+                              {% if categoria_atual == categoria %}
+                                  selected
+                              {% endif %}>
+                                {{ categoria }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label>Loja</label>
+                    <select name="loja">
+                        <option value="Todas">Todas</option>
+                        {% for loja in lojas %}
+                            <option value="{{ loja }}"
+                              {% if loja_atual == loja %}
+                                  selected
+                              {% endif %}>
+                                {{ loja }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit">Aplicar filtros</button>
+        </form>
+    </section>
+
+    <section class="grade">
+        <div class="cartao">
+            <p class="rotulo">Registros cadastrados</p>
+            <div class="numero">{{ registros }}</div>
+        </div>
+
+        <div class="cartao">
+            <p class="rotulo">Unidades em estoque</p>
+            <div class="numero">{{ unidades }}</div>
+        </div>
+
+        <div class="cartao">
+            <p class="rotulo">Valor de custo do estoque</p>
+            <div class="numero">
+                R$ {{ "%.2f"|format(valor) }}
+            </div>
+        </div>
+
+        <div class="cartao">
+            <p class="rotulo">Registros com problemas</p>
+            <div class="numero">{{ problemas }}</div>
+        </div>
+    </section>
+
+    <section class="graficos">
+        <div class="painel">
+            <h2>Unidades por categoria</h2>
+            <canvas id="graficoCategorias"></canvas>
+        </div>
+
+        <div class="painel">
+            <h2>Unidades por loja</h2>
+            <canvas id="graficoLojas"></canvas>
+        </div>
+    </section>
+
+    <p class="subtitulo">
+        Fonte dos indicadores: banco de dados Supabase.
+        Estoques inválidos ou ausentes não entram nas somas.
+    </p>
+
+    <script>
+        const categorias = {{ por_categoria | tojson }};
+        const lojas = {{ por_loja | tojson }};
+
+        Chart.defaults.color = "#cbd5e1";
+
+        new Chart(document.getElementById("graficoCategorias"), {
+            type: "bar",
+            data: {
+                labels: Object.keys(categorias),
+                datasets: [{
+                    label: "Unidades",
+                    data: Object.values(categorias),
+                    backgroundColor: "#38bdf8",
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        new Chart(document.getElementById("graficoLojas"), {
+            type: "bar",
+            data: {
+                labels: Object.keys(lojas),
+                datasets: [{
+                    label: "Unidades",
+                    data: Object.values(lojas),
+                    backgroundColor: "#34d399",
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    </script>
+
+{% endif %}
+
+</main>
+</body>
+</html>
