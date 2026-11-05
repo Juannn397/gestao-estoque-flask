@@ -153,6 +153,9 @@
                 <div>
                     <label>Categoria do arquivo</label>
                     <select name="categoria" required>
+                        <option value="Automática (arquivo misto)">
+    Automática (arquivo misto)
+</option>
                         {% for categoria in categorias %}
                             <option value="{{ categoria }}">
                                 {{ categoria }}

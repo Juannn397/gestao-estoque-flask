@@ -27,8 +27,45 @@ db = create_client(
 CATEGORIAS = [
     "Eletrônicos",
     "Moda e acessórios",
-    "Casa e decoração"
+    "Casa e decoração",
+    "Beleza e cuidados pessoais"
 ]
+
+CATEGORIA_PRODUTO = {
+    "FONE BLUETOOTH": "Eletrônicos",
+    "CARREGADOR PORTATIL": "Eletrônicos",
+    "SMARTWATCH": "Eletrônicos",
+    "CAIXA DE SOM": "Eletrônicos",
+
+    "CAMISETA BASICA": "Moda e acessórios",
+    "CALCA JEANS": "Moda e acessórios",
+    "JAQUETA CORTA-VENTO": "Moda e acessórios",
+    "TENIS CASUAL": "Moda e acessórios",
+
+    "LUMINARIA DE MESA": "Casa e decoração",
+    "JOGO DE PANELAS": "Casa e decoração",
+    "ALMOFADA DECORATIVA": "Casa e decoração",
+    "TAPETE": "Casa e decoração",
+
+    "KIT SKINCARE": "Beleza e cuidados pessoais",
+    "PERFUME": "Beleza e cuidados pessoais",
+    "SECADOR DE CABELO": "Beleza e cuidados pessoais"
+}
+
+
+def identificar_categoria(produto):
+    nome = unicodedata.normalize("NFKD", produto)
+    nome = "".join(
+        caractere for caractere in nome
+        if not unicodedata.combining(caractere)
+    ).upper()
+
+    nome = " ".join(nome.split())
+
+    if nome not in CATEGORIA_PRODUTO:
+        raise ValueError(f"Produto sem categoria: {produto}")
+
+    return CATEGORIA_PRODUTO[nome]
 
 LOJAS = {
     "Loja_Centro": "Loja Centro",
@@ -176,7 +213,11 @@ def preparar_planilha(arquivo, categoria):
 
             if not sku or not produto:
                 continue
-
+            categoria_registro = (
+                identificar_categoria(produto)
+                if categoria == "Automática (arquivo misto)"
+                else categoria
+            )
             quantidade, problema = limpar_quantidade(
                 linha["quantidade_estoque"]
             )
@@ -196,7 +237,7 @@ def preparar_planilha(arquivo, categoria):
                 avisos.append("DATA_AUSENTE")
 
             registro = {
-                "categoria": categoria,
+                "categoria": categoria_registro,
                 "loja": loja,
                 "sku": sku,
                 "produto": produto,
@@ -207,7 +248,7 @@ def preparar_planilha(arquivo, categoria):
             }
 
             # A mesma combinação não entra duas vezes
-            chave = (categoria, loja, sku, produto.casefold())
+            chave = (categoria_registro, loja, sku, produto.casefold())
             registros[chave] = registro
 
     return list(registros.values())
@@ -277,7 +318,7 @@ def importar():
     categoria = request.form.get("categoria", "")
     arquivo = request.files.get("arquivo")
 
-    if categoria not in CATEGORIAS:
+    if categoria not in CATEGORIAS + ["Automática (arquivo misto)"]:
         return "Selecione uma categoria válida.", 400
 
     if not arquivo or not arquivo.filename.lower().endswith(".xlsx"):
