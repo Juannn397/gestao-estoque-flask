@@ -9,6 +9,25 @@
     <title>Personalizar Dashboard</title>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    .interpretacao {
+    margin-top: 18px;
+    padding: 15px;
+    background: #0f172a;
+    border-left: 4px solid #38bdf8;
+    border-radius: 8px;
+}
+
+.interpretacao strong {
+    color: #38bdf8;
+}
+
+.interpretacao p {
+    color: #cbd5e1;
+    line-height: 1.6;
+    font-size: 14px;
+    margin-bottom: 0;
+}
 
     <style>
         * { box-sizing: border-box; }
@@ -205,6 +224,10 @@
                 <div class="area-grafico">
                     <canvas id="{{ grafico.id }}"></canvas>
                 </div>
+                <div class="interpretacao">
+    <strong>💡 Análise gerencial</strong>
+    <p>{{ grafico.interpretacao }}</p>
+</div>
             </div>
         {% else %}
             <p class="vazio">

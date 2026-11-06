@@ -353,6 +353,78 @@ OPCOES_GRAFICOS = {
     "registros_categoria": "Registros por categoria"
 }
 
+def interpretar_grafico(nome, valores):
+    # Nao tirar conclusoes quando nao houver valores
+    total = sum(valores.values())
+
+    if total <= 0:
+        return (
+            "Nao ha valores suficientes para analisar "
+            "este indicador com os filtros selecionados."
+        )
+
+    maior = max(valores.values())
+
+    # Encontrar todos os grupos empatados em primeiro
+    lideres = [
+        grupo for grupo, valor in valores.items()
+        if valor == maior
+    ]
+
+    percentual = maior / total * 100
+    participacao = f"{percentual:.1f}".replace(".", ",")
+
+    if len(lideres) > 1:
+        return (
+            "Ha empate entre os maiores grupos: "
+            + ", ".join(lideres)
+            + ". Consulte os valores antes de tomar decisoes."
+        )
+
+    lider = lideres[0]
+
+    if nome.startswith("unidades_"):
+        return (
+            f"{lider} concentra a maior quantidade de "
+            f"unidades no filtro aplicado, com "
+            f"{participacao}% do total. "
+            "Vale investigar se essa distribuicao "
+            "esta alinhada com a demanda."
+        )
+
+    if nome.startswith("valor_"):
+        valor_formatado = (
+            f"{maior:,.2f}"
+            .replace(",", "X")
+            .replace(".", ",")
+            .replace("X", ".")
+        )
+
+        return (
+            f"{lider} apresenta o maior valor de custo "
+            f"do estoque: R$ {valor_formatado}, "
+            f"equivalente a {participacao}% do total. "
+            "Vale analisar a concentracao de capital "
+            "antes de decidir sobre novas compras."
+        )
+
+    if nome == "problemas_categoria":
+        return (
+            f"{lider} possui o maior numero de registros "
+            f"com problemas de qualidade: {int(maior)}. "
+            "Priorize a verificacao desses dados. "
+            "Compare tambem a taxa de problemas entre categorias."
+        )
+
+    if nome == "registros_categoria":
+        return (
+            f"{lider} concentra mais registros de estoque: "
+            f"{int(maior)}, ou {participacao}% do total. "
+            "Esses registros nao representam "
+            "necessariamente produtos diferentes."
+        )
+
+    return "Analise nao disponivel."
 
 @app.route("/graficos")
 @protegido
@@ -443,7 +515,8 @@ def graficos_personalizados():
             "tipo": tipos[nome],
             "labels": list(fontes[nome].keys()),
             "valores": list(fontes[nome].values()),
-            "moeda": nome.startswith("valor_")
+            "moeda": nome.startswith("valor_"),
+            "interpretacao": interpretar_grafico(nome, fontes[nome])
         })
 
     return render_template(
