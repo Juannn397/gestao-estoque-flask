@@ -343,6 +343,119 @@ def importar():
         app.logger.exception("Erro na importação")
         return "Falha na importação. Consulte o terminal ou os logs.", 500
 
+# Opcoes de graficos disponíveis para o gestor
+OPCOES_GRAFICOS = {
+    "unidades_categoria": "Unidades por categoria",
+    "unidades_loja": "Unidades por loja",
+    "valor_categoria": "Valor de estoque por categoria",
+    "valor_loja": "Valor de estoque por loja",
+    "problemas_categoria": "Problemas por categoria",
+    "registros_categoria": "Registros por categoria"
+}
+
+
+@app.route("/graficos")
+@protegido
+def graficos_personalizados():
+
+    categoria = request.args.get("categoria", "Todas")
+    loja = request.args.get("loja", "Todas")
+
+    selecionados = [
+        nome for nome in request.args.getlist("grafico")
+        if nome in OPCOES_GRAFICOS
+    ]
+
+    # Na primeira visita, mostrar duas sugestões
+    if not request.args:
+        selecionados = [
+            "unidades_categoria",
+            "valor_loja"
+        ]
+
+    # Consultar os registros diretamente no Supabase
+    consulta = db.table("estoque").select("*")
+
+    if categoria in CATEGORIAS:
+        consulta = consulta.eq("categoria", categoria)
+
+    if loja in LOJAS.values():
+        consulta = consulta.eq("loja", loja)
+
+    dados = consulta.range(0, 999).execute().data
+
+    # Agrupar os indicadores
+    unidades_categoria = {c: 0 for c in CATEGORIAS}
+    unidades_loja = {l: 0 for l in LOJAS.values()}
+
+    valor_categoria = {c: 0 for c in CATEGORIAS}
+    valor_loja = {l: 0 for l in LOJAS.values()}
+
+    problemas_categoria = {c: 0 for c in CATEGORIAS}
+    registros_categoria = {c: 0 for c in CATEGORIAS}
+
+    for item in dados:
+        cat = item["categoria"]
+        lj = item["loja"]
+
+        registros_categoria[cat] += 1
+
+        if item["status_qualidade"] != "OK":
+            problemas_categoria[cat] += 1
+
+        quantidade = item["quantidade_estoque"]
+        preco = item["preco_custo"]
+
+        if quantidade is not None:
+            unidades_categoria[cat] += quantidade
+            unidades_loja[lj] += quantidade
+
+            if preco is not None:
+                valor = quantidade * float(preco)
+                valor_categoria[cat] += valor
+                valor_loja[lj] += valor
+
+    # Dados prontos para o Chart.js
+    fontes = {
+        "unidades_categoria": unidades_categoria,
+        "unidades_loja": unidades_loja,
+        "valor_categoria": valor_categoria,
+        "valor_loja": valor_loja,
+        "problemas_categoria": problemas_categoria,
+        "registros_categoria": registros_categoria
+    }
+
+    tipos = {
+        "unidades_categoria": "doughnut",
+        "unidades_loja": "bar",
+        "valor_categoria": "bar",
+        "valor_loja": "bar",
+        "problemas_categoria": "bar",
+        "registros_categoria": "doughnut"
+    }
+
+    graficos = []
+
+    for nome in selecionados:
+        graficos.append({
+            "id": nome,
+            "titulo": OPCOES_GRAFICOS[nome],
+            "tipo": tipos[nome],
+            "labels": list(fontes[nome].keys()),
+            "valores": list(fontes[nome].values()),
+            "moeda": nome.startswith("valor_")
+        })
+
+    return render_template(
+        "graficos.html",
+        opcoes=OPCOES_GRAFICOS,
+        selecionados=selecionados,
+        graficos=graficos,
+        categorias=CATEGORIAS,
+        lojas=list(LOJAS.values()),
+        categoria_atual=categoria,
+        loja_atual=loja
+    )
 
 if __name__ == "__main__":
     app.run(debug=True)

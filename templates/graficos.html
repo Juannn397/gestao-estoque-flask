@@ -1,0 +1,300 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Personalizar Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            background: #0f172a;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 30px 18px;
+        }
+
+        main {
+            max-width: 1150px;
+            margin: auto;
+        }
+
+        h1 { color: #38bdf8; }
+
+        p { color: #94a3b8; }
+
+        a { color: #38bdf8; }
+
+        .painel {
+            background: #1e293b;
+            padding: 24px;
+            border-radius: 14px;
+            margin: 22px 0;
+        }
+
+        .opcoes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin: 18px 0;
+        }
+
+        .opcao {
+            padding: 14px;
+            border: 1px solid #475569;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .opcao input {
+            margin-right: 10px;
+            accent-color: #38bdf8;
+        }
+
+        .filtros {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            color: white;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        button {
+            background: #38bdf8;
+            color: #082f49;
+            padding: 13px 22px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 22px;
+        }
+
+        .grade {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .grafico {
+            background: #1e293b;
+            padding: 22px;
+            border-radius: 14px;
+            min-width: 0;
+        }
+
+        .area-grafico {
+            position: relative;
+            height: 320px;
+        }
+
+        .vazio {
+            color: #94a3b8;
+            text-align: center;
+            padding: 35px;
+        }
+
+        @media (max-width: 750px) {
+            .grade, .opcoes, .filtros {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<main>
+    <a href="/">Voltar ao painel principal</a>
+
+    <h1>Personalizar Dashboard</h1>
+    <p>
+        Escolha quais gráficos deseja visualizar.
+        Os dados são consultados diretamente no Supabase.
+    </p>
+
+    <section class="painel">
+        <form method="GET" action="/graficos">
+
+            <h2>1. Selecione os gráficos</h2>
+
+            <div class="opcoes">
+                {% for codigo, titulo in opcoes.items() %}
+
+                    <label class="opcao">
+                        <input
+                            type="checkbox"
+                            name="grafico"
+                            value="{{ codigo }}"
+                            {% if codigo in selecionados %}
+                                checked
+                            {% endif %}
+                        >
+                        {{ titulo }}
+                    </label>
+
+                {% endfor %}
+            </div>
+
+            <h2>2. Escolha os filtros</h2>
+
+            <div class="filtros">
+                <div>
+                    <label>Categoria</label>
+
+                    <select name="categoria">
+                        <option value="Todas">Todas</option>
+
+                        {% for categoria in categorias %}
+                            <option value="{{ categoria }}"
+                              {% if categoria == categoria_atual %}
+                                  selected
+                              {% endif %}>
+                                {{ categoria }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label>Loja</label>
+
+                    <select name="loja">
+                        <option value="Todas">Todas</option>
+
+                        {% for loja in lojas %}
+                            <option value="{{ loja }}"
+                              {% if loja == loja_atual %}
+                                  selected
+                              {% endif %}>
+                                {{ loja }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit">
+                Gerar meu dashboard
+            </button>
+        </form>
+    </section>
+
+    <h2>3. Meus gráficos</h2>
+
+    <section class="grade">
+
+        {% for grafico in graficos %}
+            <div class="grafico">
+                <h3>{{ grafico.titulo }}</h3>
+
+                <div class="area-grafico">
+                    <canvas id="{{ grafico.id }}"></canvas>
+                </div>
+            </div>
+        {% else %}
+            <p class="vazio">
+                Selecione pelo menos um gráfico.
+            </p>
+        {% endfor %}
+
+    </section>
+
+</main>
+
+<script>
+    const graficos = {{ graficos | tojson }};
+
+    Chart.defaults.color = "#cbd5e1";
+
+    const cores = [
+        "#38bdf8",
+        "#34d399",
+        "#f59e0b",
+        "#a78bfa",
+        "#f472b6",
+        "#fb7185"
+    ];
+
+    graficos.forEach(function(grafico) {
+
+        const elemento = document.getElementById(grafico.id);
+
+        const contexto = elemento.getContext("2d");
+
+        new Chart(contexto, {
+            type: grafico.tipo,
+
+            data: {
+                labels: grafico.labels,
+
+                datasets: [{
+                    label: grafico.titulo,
+                    data: grafico.valores,
+                    backgroundColor:
+                        grafico.tipo === "doughnut"
+                        ? cores
+                        : "#38bdf8",
+                    borderRadius:
+                        grafico.tipo === "bar" ? 6 : 0
+                }]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                plugins: {
+                    legend: {
+                        display: grafico.tipo === "doughnut"
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const valor = context.parsed;
+
+                                const numero =
+                                    typeof valor === "number"
+                                    ? valor
+                                    : (valor.y ?? valor.x ?? 0);
+
+                                if (grafico.moeda) {
+                                    return numero.toLocaleString(
+                                        "pt-BR",
+                                        {
+                                            style: "currency",
+                                            currency: "BRL"
+                                        }
+                                    );
+                                }
+
+                                return numero.toLocaleString("pt-BR");
+                            }
+                        }
+                    }
+                },
+
+                scales: grafico.tipo === "bar"
+                    ? { y: { beginAtZero: true } }
+                    : {}
+            }
+        });
+    });
+</script>
+</body>
+</html>
